@@ -1,0 +1,213 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  STUDENT
+  ADMIN
+}
+
+enum CourseLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum QuizQuestionType {
+  MULTIPLE_CHOICE
+  BOARD
+}
+
+// ---------------------------------------------------------------------------
+// Auth & Users
+// ---------------------------------------------------------------------------
+
+model User {
+  id             String           @id @default(cuid())
+  email          String           @unique
+  name           String?
+  role           UserRole         @default(STUDENT)
+  avatarUrl      String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  lessonProgress LessonProgress[]
+  puzzleAttempts PuzzleAttempt[]
+  certificates   Certificate[]
+  enrollments    Enrollment[]
+}
+
+// ---------------------------------------------------------------------------
+// Course & Lesson hierarchy
+// ---------------------------------------------------------------------------
+
+model Course {
+  id            String          @id @default(cuid())
+  title         String
+  slug          String          @unique
+  level         CourseLevel
+  description   String?
+  coverImageUrl String?
+  order         Int             @default(0)
+  published     Boolean         @default(false)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  lessons      Lesson[]
+  puzzles      CoursePuzzle[]
+  certificates Certificate[]
+  enrollments  Enrollment[]
+}
+
+model Lesson {
+  id        String   @id @default(cuid())
+  courseId  String
+  title     String
+  slug      String
+  content   Json     // [{ type: 'text', markdown: '...' }, { type: 'board', fen: '...', moves: ['e2e4'] }]
+  order     Int      @default(0)
+  published Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  course      Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  quiz        Quiz?           @relation(fields: [quizId], references: [id])
+  quizId      String?         @unique
+  progress    LessonProgress[]
+
+  @@unique([courseId, slug])
+}
+
+// ---------------------------------------------------------------------------
+// Quiz system
+// ---------------------------------------------------------------------------
+
+model Quiz {
+  id       String @id @default(cuid())
+  title    String
+  minScore Int    @default(70) // Percentage required to pass
+
+  questions QuizQuestion[]
+  lesson    Lesson?
+}
+
+model QuizQuestion {
+  id            String           @id @default(cuid())
+  quizId        String
+  type          QuizQuestionType @default(MULTIPLE_CHOICE)
+  prompt        String
+  options       Json?            // [{ id: string, text: string }, ...]
+  correctAnswer Json             // string for MULTIPLE_CHOICE; string[] (UCI moves) for BOARD
+  fen           String?          // Starting position for BOARD questions
+  explanation   String?          // Shown after answer is submitted
+  position      Int              @default(0) // Sort order
+
+  quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+}
+
+// ---------------------------------------------------------------------------
+// Puzzles (imported from Lichess CC0 database)
+// ---------------------------------------------------------------------------
+
+model Puzzle {
+  id              String   @id @default(cuid())
+  lichessId       String?  @unique
+  fen             String
+  solutionMoves   String[] // UCI format e4e5 g1f3 ...
+  rating          Int?
+  ratingDeviation Int?
+  themes          String[]
+  nbPlays         Int?
+  published       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  attempts     PuzzleAttempt[]
+  coursePuzzles CoursePuzzle[]
+}
+
+model CoursePuzzle {
+  id       String @id @default(cuid())
+  courseId String
+  puzzleId String
+  order    Int    @default(0)
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  puzzle Puzzle @relation(fields: [puzzleId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, puzzleId])
+}
+
+// ---------------------------------------------------------------------------
+// Progress tracking
+// ---------------------------------------------------------------------------
+
+model LessonProgress {
+  id          String    @id @default(cuid())
+  userId      String
+  lessonId    String
+  score       Int?      // Quiz percentage (set only after quiz attempt)
+  passed      Boolean   @default(false)
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+}
+
+model PuzzleAttempt {
+  id           String   @id @default(cuid())
+  userId       String
+  puzzleId     String
+  solved       Boolean
+  timeMs       Int?
+  attemptsUsed Int      @default(1)
+  createdAt    DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  puzzle Puzzle @relation(fields: [puzzleId], references: [id], onDelete: Cascade)
+}
+
+// ---------------------------------------------------------------------------
+// Certificates
+// ---------------------------------------------------------------------------
+
+model Certificate {
+  id               String   @id @default(cuid())
+  userId           String
+  courseId         String
+  verificationCode String   @unique // Unique hash for public verification
+  pdfUrl           String?          // Supabase Storage URL
+  issuedAt         DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+}
+
+// ---------------------------------------------------------------------------
+// Enrollment
+// ---------------------------------------------------------------------------
+
+model Enrollment {
+  id         String    @id @default(cuid())
+  userId     String
+  courseId   String
+  enrolledAt DateTime  @default(now())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course     Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+}

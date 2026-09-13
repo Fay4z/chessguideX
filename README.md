@@ -1,1 +1,1 @@
-# chessguideX
+This is a LMS (Learning Management System) project for learning and practicing Chess digitally. It is designed to help users improve their chess skills through interactive lessons, quizzes, and puzzle exercises. The system includes features such as user authentication, progress tracking, and a variety of learning resources tailored to different skill levels.
