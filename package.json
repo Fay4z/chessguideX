@@ -11,7 +11,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
-    "db:seed": "tsx prisma/seed/import-lichess-puzzles.ts"
+    "db:seed": "tsx prisma/seed/import-lichess-puzzles.ts",
+    "seed:content": "tsx prisma/seed/seed-content.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
@@ -24,6 +25,7 @@
     "react": "19.2.8",
     "react-chessboard": "^5.12.1",
     "react-dom": "19.2.8",
+    "react-markdown": "^10.1.0",
     "zod": "^4.6.4"
   },
   "devDependencies": {
