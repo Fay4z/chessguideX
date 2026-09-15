@@ -3,7 +3,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAuthUser, ensureProfile } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { parseContentBlocks } from "@/lib/content";
+import {
+  parseContentBlocks,
+  type ContentBlock,
+} from "@/lib/content";
 import { MarkdownBlock } from "@/components/lesson/MarkdownBlock";
 import { BoardDemo } from "@/components/lesson/BoardDemo";
 import {
@@ -132,15 +135,19 @@ export default async function LessonPage({
       )}
 
       <div className="mt-8 max-w-3xl">
-        {blocks.map((block, i) =>
-          block.type === "text" ? (
-            <MarkdownBlock key={i} markdown={block.markdown} />
+        {sectionsFrom(blocks).map((section, i) =>
+          section.kind === "text" ? (
+            <MarkdownBlock key={i} markdown={section.markdown} />
           ) : (
-            <BoardDemo
-              key={i}
-              fen={block.fen}
-              moves={block.moves ?? undefined}
-            />
+            <BoardDemo key={i} fen={section.fen} moves={section.moves}>
+              {section.texts.length > 0 && (
+                <div className="space-y-0">
+                  {section.texts.map((markdown, j) => (
+                    <MarkdownBlock key={j} markdown={markdown} />
+                  ))}
+                </div>
+              )}
+            </BoardDemo>
           ),
         )}
       </div>
@@ -183,4 +190,35 @@ export default async function LessonPage({
       </nav>
     </div>
   );
+}
+
+type DemoSection = {
+  kind: "demo";
+  texts: string[];
+  fen: string;
+  moves: string[] | undefined;
+};
+type TextSection = { kind: "text"; markdown: string };
+type Section = DemoSection | TextSection;
+
+function sectionsFrom(blocks: ContentBlock[]): Section[] {
+  const sections: Section[] = [];
+  let pending: string[] = [];
+  for (const block of blocks) {
+    if (block.type === "text") {
+      pending.push(block.markdown);
+      continue;
+    }
+    sections.push({
+      kind: "demo",
+      texts: pending,
+      fen: block.fen,
+      moves: block.moves ?? undefined,
+    });
+    pending = [];
+  }
+  if (pending.length > 0) {
+    sections.push({ kind: "text", markdown: pending.join("\n\n") });
+  }
+  return sections;
 }
