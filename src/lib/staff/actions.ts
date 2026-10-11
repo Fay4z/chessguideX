@@ -111,6 +111,10 @@ const studentSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters long."),
 });
 
+const studentPasswordSchema = z.object({
+  password: z.string().min(8, "Password must be at least 8 characters long."),
+});
+
 export async function createStudent(
   classId: string,
   _prevState: StaffFormState,
@@ -172,4 +176,50 @@ export async function createStudent(
   }
 
   return { success: `Student "${name}" added.` };
+}
+
+// ─── Password reset ─────────────────────────────────────────────────────────
+
+export async function resetStudentPassword(
+  classId: string,
+  userId: string,
+  _prevState: StaffFormState,
+  formData: FormData,
+): Promise<StaffFormState> {
+  const staff = await requireStaff();
+  if (!staff) return { error: "You must be a teacher or admin." };
+
+  const klass = await prisma.class.findUnique({ where: { id: classId } });
+  if (!klass) return { error: "Class not found." };
+  if (staff.role === "TEACHER" && klass.teacherId !== staff.id) {
+    return { error: "You do not own this class." };
+  }
+
+  const member = await prisma.classMember.findUnique({
+    where: { classId_userId: { classId, userId } },
+    include: { user: true },
+  });
+  if (!member) return { error: "That student is not in this class." };
+
+  const parsed = studentPasswordSchema.safeParse({
+    password: formData.get("password"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+
+  const supabaseUserId = member.user.supabaseUserId;
+  if (!supabaseUserId) {
+    return { error: "That student has no linked login account yet." };
+  }
+
+  const supabase = createAdminClient();
+  const { error } = await supabase.auth.admin.updateUserById(supabaseUserId, {
+    password: parsed.data.password,
+  });
+  if (error) return { error: error.message };
+
+  return {
+    success: `Password updated for ${member.user.name ?? member.user.email}.`,
+  };
 }
