@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canStartCourse, canStartLesson } from "./gating";
+import { canStartCourse, canStartLesson, unlockedCourses, unlockedLessons } from "./gating";
 
 describe("canStartLesson", () => {
   it("keeps a locked course closed even for its first lesson", () => {
@@ -41,5 +41,37 @@ describe("canStartCourse", () => {
 
   it("unlocks once the prior course is completed", () => {
     expect(canStartCourse({ hasPriorCourse: true, priorCourseCompleted: true })).toBe(true);
+  });
+});
+
+describe("unlockedLessons", () => {
+  it("locks every lesson in a locked course", () => {
+    expect(unlockedLessons(false, [false, false, false])).toEqual([false, false, false]);
+    expect(unlockedLessons(false, [true, true, true])).toEqual([false, false, false]);
+  });
+
+  it("opens only the first lesson by default", () => {
+    expect(unlockedLessons(true, [false, false, false])).toEqual([true, false, false]);
+  });
+
+  it("unlocks each next lesson when the previous one is passed", () => {
+    expect(unlockedLessons(true, [true, false, false])).toEqual([true, true, false]);
+    expect(unlockedLessons(true, [true, true, false])).toEqual([true, true, true]);
+    expect(unlockedLessons(true, [true, true, true])).toEqual([true, true, true]);
+  });
+});
+
+describe("unlockedCourses", () => {
+  it("keeps only the path head open while nothing is completed", () => {
+    expect(unlockedCourses([false, false, false])).toEqual([true, false, false]);
+  });
+
+  it("advances the open frontier as courses complete", () => {
+    expect(unlockedCourses([true, false, false])).toEqual([true, true, false]);
+    expect(unlockedCourses([true, true, false])).toEqual([true, true, true]);
+  });
+
+  it("lets each course depend only on its immediate predecessor", () => {
+    expect(unlockedCourses([true, false, true])).toEqual([true, true, false]);
   });
 });

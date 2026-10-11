@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getAuthUser, ensureProfile } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { awardAndPersist, type AwardRecordResult } from "@/lib/gamification/record";
+import { isLessonUnlocked } from "@/lib/gamification/gates";
 
 // ─── Enroll ─────────────────────────────────────────────────────────────────
 
@@ -80,15 +81,11 @@ export async function submitQuiz(
   });
   if (!lesson?.quiz) return { ok: false, error: "This lesson has no quiz." };
 
-  const enrollment = await prisma.enrollment.findUnique({
-    where: {
-      userId_courseId: { userId: profile.id, courseId: lesson.courseId },
-    },
-  });
-  if (!enrollment) {
+  const unlocked = await isLessonUnlocked(profile.id, lesson.id);
+  if (!unlocked) {
     return {
       ok: false,
-      error: "Enroll in this course before taking the quiz.",
+      error: "This lesson is locked. Complete the previous lesson first.",
     };
   }
 
