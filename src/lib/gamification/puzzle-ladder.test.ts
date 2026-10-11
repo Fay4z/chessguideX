@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   INITIAL_PUZZLE_RATING,
   nextPuzzleRating,
+  puzzleBandFor,
+  puzzleEventsFor,
   PUZZLE_RATING_MAX,
   PUZZLE_RATING_MIN,
 } from "./puzzle-ladder";
@@ -47,5 +49,52 @@ describe("nextPuzzleRating", () => {
       expect(rating).toBeGreaterThanOrEqual(PUZZLE_RATING_MIN);
       expect(rating).toBeLessThanOrEqual(PUZZLE_RATING_MAX);
     }
+  });
+});
+
+describe("puzzleBandFor", () => {
+  it("centers the band on the rating at width 100", () => {
+    expect(puzzleBandFor(400)).toEqual({ low: 300, high: 500 });
+  });
+
+  it("clamps the upper edge at the maximum rating", () => {
+    expect(puzzleBandFor(PUZZLE_RATING_MAX - 50)).toEqual({
+      low: PUZZLE_RATING_MAX - 150,
+      high: PUZZLE_RATING_MAX,
+    });
+  });
+
+  it("clamps the lower edge at the minimum rating", () => {
+    expect(puzzleBandFor(PUZZLE_RATING_MIN + 50)).toEqual({
+      low: PUZZLE_RATING_MIN,
+      high: PUZZLE_RATING_MIN + 150,
+    });
+  });
+});
+
+describe("puzzleEventsFor", () => {
+  it("pays no award for a failed attempt", () => {
+    expect(puzzleEventsFor("pz1", false, 0)).toEqual([]);
+  });
+
+  it("pays the solve award without a bonus on the first streak solve", () => {
+    expect(puzzleEventsFor("pz1", true, 1)).toEqual([
+      { kind: "puzzle_solved", refId: "pz1" },
+    ]);
+  });
+
+  it("adds the streak bonus from the second consecutive solve", () => {
+    expect(puzzleEventsFor("pz1", true, 2)).toEqual([
+      { kind: "puzzle_solved", refId: "pz1" },
+      { kind: "puzzle_streak_bonus", refId: "pz1" },
+    ]);
+  });
+
+  it("re-pays solve awards across different puzzles", () => {
+    const events = [
+      ...puzzleEventsFor("pz1", true, 2),
+      ...puzzleEventsFor("pz2", true, 3),
+    ];
+    expect(events).toHaveLength(4);
   });
 });

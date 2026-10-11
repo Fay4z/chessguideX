@@ -283,6 +283,7 @@ model Streak {
   userId       String    @id
   dailyCount   Int       @default(0)
   puzzleCount  Int       @default(0)
+  puzzleRating Int       @default(400)
   lastDailyAt  DateTime?
   lastPuzzleAt DateTime?
   updatedAt    DateTime  @updatedAt

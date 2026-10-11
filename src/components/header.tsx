@@ -31,6 +31,12 @@ export function Header() {
           {user ? (
             <>
               <Link
+                href="/puzzles"
+                className="hidden text-zinc-600 transition hover:text-zinc-900 sm:inline dark:text-zinc-400 dark:hover:text-zinc-100"
+              >
+                Puzzles
+              </Link>
+              <Link
                 href="/dashboard"
                 className="hidden text-zinc-600 transition hover:text-zinc-900 sm:inline dark:text-zinc-400 dark:hover:text-zinc-100"
               >
