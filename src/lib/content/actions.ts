@@ -6,35 +6,6 @@ import { prisma } from "@/lib/db";
 import { awardAndPersist, type AwardRecordResult } from "@/lib/gamification/record";
 import { isLessonUnlocked } from "@/lib/gamification/gates";
 
-// ─── Enroll ─────────────────────────────────────────────────────────────────
-
-export type EnrollState = { ok: boolean; message?: string };
-
-export async function enrollInCourse(
-  _prevState: EnrollState,
-  formData: FormData,
-): Promise<EnrollState> {
-  const courseId = String(formData.get("courseId") ?? "");
-  if (!courseId) return { ok: false, message: "Missing course id." };
-
-  const user = await getAuthUser();
-  if (!user) return { ok: false, message: "Sign in to enroll." };
-  const profile = await ensureProfile(user);
-
-  const course = await prisma.course.findUnique({ where: { id: courseId } });
-  if (!course) return { ok: false, message: "Course not found." };
-
-  await prisma.enrollment.upsert({
-    where: { userId_courseId: { userId: profile.id, courseId } },
-    update: {},
-    create: { userId: profile.id, courseId },
-  });
-
-  revalidatePath(`/courses/${course.slug}`);
-  revalidatePath("/dashboard");
-  return { ok: true, message: "You are now enrolled. Happy learning!" };
-}
-
 // ─── Quiz submission ─────────────────────────────────────────────────────────
 
 export type SubmitQuizQuestionResult = {

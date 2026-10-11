@@ -4,7 +4,6 @@ import { notFound } from "next/navigation";
 import { getAuthUser, ensureProfile } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getCourseGate, getLessonGates } from "@/lib/gamification/gates";
-import { EnrollForm } from "@/components/course/EnrollForm";
 
 export async function generateMetadata({
   params,
@@ -51,16 +50,6 @@ export default async function CoursePage({
   ]);
   const unlockedById = new Map(lessonGates.map((g) => [g.id, g.unlocked]));
 
-  let enrolled = false;
-  let completedLessons = 0;
-
-  if (profile) {
-    const enrollment = await prisma.enrollment.findUnique({
-      where: { userId_courseId: { userId: profile.id, courseId: course.id } },
-    });
-    enrolled = Boolean(enrollment);
-  }
-
   const completedIds = new Set(
     profile
       ? (
@@ -75,7 +64,7 @@ export default async function CoursePage({
         ).map((p) => p.lessonId)
       : [],
   );
-  completedLessons = completedIds.size;
+  const completedLessons = completedIds.size;
 
   const totalLessons = course.lessons.length;
   const progress = totalLessons === 0 ? 0 : completedLessons / totalLessons;
@@ -103,13 +92,9 @@ export default async function CoursePage({
         </div>
         <div>
           {courseGate.unlocked ? (
-            enrolled ? (
-              <span className="inline-block rounded-full border border-emerald-300 px-6 py-3 text-sm font-medium text-emerald-700 dark:border-emerald-700 dark:text-emerald-400">
-                Enrolled
-              </span>
-            ) : (
-              <EnrollForm courseId={course.id} />
-            )
+            <span className="inline-block rounded-full border border-emerald-300 px-6 py-3 text-sm font-medium text-emerald-700 dark:border-emerald-700 dark:text-emerald-400">
+              Open
+            </span>
           ) : (
             <span className="inline-flex items-center gap-2 rounded-full border border-zinc-300 px-6 py-3 text-sm font-medium text-zinc-500 dark:border-zinc-700">
               <svg
@@ -132,8 +117,7 @@ export default async function CoursePage({
 
       {courseGate.unlocked ? (
         <>
-          {enrolled && (
-            <div className="mt-6">
+          <div className="mt-6">
               <div className="flex items-center justify-between text-sm text-zinc-600 dark:text-zinc-400">
                 <span>
                   Completed {completedLessons} of {totalLessons} lessons
@@ -147,7 +131,6 @@ export default async function CoursePage({
                 />
               </div>
             </div>
-          )}
 
           <ol className="mt-8 space-y-3">
             {course.lessons.map((lesson, i) => {
