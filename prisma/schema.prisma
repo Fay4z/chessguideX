@@ -92,6 +92,7 @@ model Lesson {
   quiz        Quiz?           @relation(fields: [quizId], references: [id])
   quizId      String?         @unique
   progress    LessonProgress[]
+  puzzles     LessonPuzzle[]
 
   @@unique([courseId, slug])
 }
@@ -142,6 +143,19 @@ model Puzzle {
 
   attempts     PuzzleAttempt[]
   coursePuzzles CoursePuzzle[]
+  lessonPuzzles LessonPuzzle[]
+}
+
+model LessonPuzzle {
+  id       String @id @default(cuid())
+  lessonId String
+  puzzleId String
+  order    Int    @default(0)
+
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  puzzle Puzzle @relation(fields: [puzzleId], references: [id], onDelete: Cascade)
+
+  @@unique([lessonId, puzzleId])
 }
 
 model CoursePuzzle {

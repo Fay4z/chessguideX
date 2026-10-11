@@ -53,6 +53,15 @@ function text(markdown: string): ContentBlock {
   return { type: "text", markdown };
 }
 
+const CURATED_LESSON_PUZZLES: Record<
+  string,
+  { theme: string; skip: number; take: number }
+> = {
+  "the-chessboard": { theme: "hangingPiece", skip: 0, take: 5 },
+  "how-the-pieces-move": { theme: "hangingPiece", skip: 5, take: 5 },
+  "check-checkmate-stalemate": { theme: "mateIn1", skip: 0, take: 5 },
+};
+
 function board(moves: string[]): ContentBlock {
   const game = new Chess(START_FEN);
   const san: string[] = [];
@@ -776,7 +785,7 @@ async function main() {
       await prisma.lesson.deleteMany({ where: { id: existing.id } });
     }
 
-    await prisma.lesson.create({
+    const created = await prisma.lesson.create({
       data: {
         course: { connect: { id: saved.id } },
         title: lesson.title,
@@ -802,6 +811,27 @@ async function main() {
         },
       },
     });
+
+    const curated = CURATED_LESSON_PUZZLES[lesson.slug];
+    if (curated && course.level === "BEGINNER") {
+      const picks = await prisma.puzzle.findMany({
+        where: { published: true, themes: { has: curated.theme } },
+        orderBy: { rating: "asc" },
+        skip: curated.skip,
+        take: curated.take,
+        select: { id: true },
+      });
+      if (picks.length > 0) {
+        await prisma.lessonPuzzle.createMany({
+          data: picks.map((p, i) => ({
+            lessonId: created.id,
+            puzzleId: p.id,
+            order: i,
+          })),
+          skipDuplicates: true,
+        });
+      }
+    }
   }
 
   if (course.test) {
@@ -840,9 +870,10 @@ async function main() {
     prisma.lesson.count(),
     prisma.quiz.count(),
     prisma.quizQuestion.count(),
+    prisma.lessonPuzzle.count(),
   ]);
-  const [courses, lessons, quizzes, questions] = summary;
-  console.log("Done:", { courses, lessons, quizzes, questions });
+  const [courses, lessons, quizzes, questions, lessonPuzzles] = summary;
+  console.log("Done:", { courses, lessons, quizzes, questions, lessonPuzzles });
   await prisma.$disconnect();
 }
 

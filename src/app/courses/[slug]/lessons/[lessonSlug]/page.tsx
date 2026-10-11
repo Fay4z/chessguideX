@@ -11,6 +11,7 @@ import {
 } from "@/lib/content";
 import { MarkdownBlock } from "@/components/lesson/MarkdownBlock";
 import { BoardDemo } from "@/components/lesson/BoardDemo";
+import { LessonPuzzleSet } from "@/components/puzzles/LessonPuzzleSet";
 import {
   QuizBlock,
   type QuizQuestionView,
@@ -46,6 +47,12 @@ export default async function LessonPage({
     include: {
       quiz: {
         include: { questions: { orderBy: { position: "asc" } } },
+      },
+      puzzles: {
+        orderBy: { order: "asc" },
+        select: {
+          puzzle: { select: { id: true, fen: true, solutionMoves: true } },
+        },
       },
     },
   });
@@ -170,6 +177,14 @@ export default async function LessonPage({
               submit={(answers) => submitQuiz(lesson.id, answers)}
             />
           )}
+
+          <LessonPuzzleSet
+            puzzles={lesson.puzzles.map((lp) => ({
+              id: lp.puzzle.id,
+              fen: lp.puzzle.fen,
+              solutionMoves: lp.puzzle.solutionMoves,
+            }))}
+          />
 
           <nav className="mt-12 flex items-center justify-between gap-4 border-t border-zinc-200 pt-6 dark:border-zinc-800">
             {prevLesson ? (
