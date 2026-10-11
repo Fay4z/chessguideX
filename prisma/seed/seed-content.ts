@@ -46,6 +46,7 @@ type CourseSeed = {
   description: string;
   order: number;
   lessons: LessonSeed[];
+  test?: { title: string; minScore: number; questions: Question[] };
 };
 
 function text(markdown: string): ContentBlock {
@@ -267,6 +268,117 @@ rook) cannot help, so it is mate.`),
         },
       },
     ],
+    test: {
+      title: "Beginner Course Test",
+      minScore: 90,
+      questions: [
+        {
+          prompt: "How many squares are there on a standard chessboard?",
+          options: [
+            { id: "a", text: "64" },
+            { id: "b", text: "32" },
+            { id: "c", text: "81" },
+            { id: "d", text: "56" },
+          ],
+          correct: "a",
+          explanation: "8 files × 8 ranks = 64 squares.",
+        },
+        {
+          prompt: "Which of these is a legal square name?",
+          options: [
+            { id: "a", text: "e5" },
+            { id: "b", text: "h9" },
+            { id: "c", text: "1a" },
+            { id: "d", text: "j4" },
+          ],
+          correct: "a",
+          explanation: "Files run a–h and ranks run 1–8.",
+        },
+        {
+          prompt: "Which piece moves in an L-shape and can jump over other pieces?",
+          options: [
+            { id: "a", text: "Knight" },
+            { id: "b", text: "Bishop" },
+            { id: "c", text: "Rook" },
+            { id: "d", text: "Pawn" },
+          ],
+          correct: "a",
+        },
+        {
+          prompt: "A bishop always stays on …",
+          options: [
+            { id: "a", text: "the same color squares" },
+            { id: "b", text: "the light squares" },
+            { id: "c", text: "the back rank" },
+            { id: "d", text: "the center" },
+          ],
+          correct: "a",
+          explanation: "Bishops move diagonally, so their square color never changes.",
+        },
+        {
+          prompt: "Which piece combines the moves of the rook and the bishop?",
+          options: [
+            { id: "a", text: "The queen" },
+            { id: "b", text: "The king" },
+            { id: "c", text: "The knight" },
+            { id: "d", text: "The pawn" },
+          ],
+          correct: "a",
+        },
+        {
+          prompt: "When your king is attacked, the position is called …",
+          options: [
+            { id: "a", text: "check" },
+            { id: "b", text: "checkmate" },
+            { id: "c", text: "stalemate" },
+            { id: "d", text: "fork" },
+          ],
+          correct: "a",
+        },
+        {
+          prompt: "You are in check. Which move is NEVER legal?",
+          options: [
+            { id: "a", text: "Moving your king to safety" },
+            { id: "b", text: "Capturing the checking piece" },
+            { id: "c", text: "Playing an unrelated move" },
+            { id: "d", text: "Blocking the check" },
+          ],
+          correct: "c",
+          explanation: "You must always get out of check immediately.",
+        },
+        {
+          prompt: "In Scholar's Mate, White attacks which pawn?",
+          options: [
+            { id: "a", text: "f7" },
+            { id: "b", text: "e4" },
+            { id: "c", text: "d5" },
+            { id: "d", text: "b2" },
+          ],
+          correct: "a",
+          explanation: "f7 is guarded only by the black king in the opening.",
+        },
+        {
+          prompt: "Which opening idea is generally a mistake?",
+          options: [
+            { id: "a", text: "Bringing the queen out very early" },
+            { id: "b", text: "Developing knights and bishops" },
+            { id: "c", text: "Casting to safety" },
+            { id: "d", text: "Fighting for the center" },
+          ],
+          correct: "a",
+        },
+        {
+          prompt: "When a pawn reaches the last rank it must be promoted into …",
+          options: [
+            { id: "a", text: "a queen, rook, bishop or knight" },
+            { id: "b", text: "a second king" },
+            { id: "c", text: "another pawn" },
+            { id: "d", text: "nothing at all" },
+          ],
+          correct: "a",
+        },
+      ],
+    },
   },
 
   // ────────────────────────────── INTERMEDIATE ──────────────────────────────
@@ -689,6 +801,34 @@ async function main() {
           },
         },
       },
+    });
+  }
+
+  if (course.test) {
+    // Replace any previous course test (idempotent re-seeds).
+    if (saved.quizId) {
+      await prisma.quizQuestion.deleteMany({ where: { quizId: saved.quizId } });
+      await prisma.quiz.deleteMany({ where: { id: saved.quizId } });
+    }
+    const testQuiz = await prisma.quiz.create({
+      data: {
+        title: course.test.title,
+        minScore: course.test.minScore,
+        questions: {
+          create: course.test.questions.map((q, i) => ({
+            type: "MULTIPLE_CHOICE",
+            prompt: q.prompt,
+            options: q.options,
+            correctAnswer: q.correct,
+            explanation: q.explanation ?? null,
+            position: i,
+          })),
+        },
+      },
+    });
+    await prisma.course.update({
+      where: { id: saved.id },
+      data: { quizId: testQuiz.id },
     });
   }
 

@@ -68,7 +68,14 @@ export default async function CoursesPage() {
                 className="rounded-full bg-zinc-900 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
               >
                 {nextCourse.completed ? "Start" : "Continue learning"} →
-          </Link>
+              </Link>
+            ) : nextCourse.hasTest ? (
+              <Link
+                href={`/courses/${nextCourse.slug}#course-test`}
+                className="rounded-full bg-zinc-900 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+              >
+                Take the course test →
+              </Link>
             ) : (
               <span className="rounded-full border border-zinc-300 px-6 py-2.5 text-sm font-medium text-zinc-500 dark:border-zinc-700">
                 Awaiting your course test

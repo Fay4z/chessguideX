@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { getAuthUser, ensureProfile } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getCourseGate, getLessonGates } from "@/lib/gamification/gates";
+import { submitQuiz } from "@/lib/content/actions";
 import {
   parseContentBlocks,
   type ContentBlock,
@@ -163,10 +164,10 @@ export default async function LessonPage({
 
           {quizView && (
             <QuizBlock
-              lessonId={lesson.id}
               quizTitle={lesson.quiz?.title ?? "Quiz"}
               questions={quizView}
               alreadyPassed={completed}
+              submit={(answers) => submitQuiz(lesson.id, answers)}
             />
           )}
 

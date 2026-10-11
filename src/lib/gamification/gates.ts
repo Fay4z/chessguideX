@@ -19,7 +19,14 @@ async function pathCourses() {
   return prisma.course.findMany({
     where: { published: true },
     orderBy: [{ level: "asc" }, { order: "asc" }],
-    select: { id: true, slug: true, title: true, level: true, description: true },
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      level: true,
+      description: true,
+      quizId: true,
+    },
   });
 }
 
@@ -102,6 +109,7 @@ export interface PathCourse {
   level: string;
   description: string | null;
   lessonCount: number;
+  hasTest: boolean;
   unlocked: boolean;
   completed: boolean;
 }
@@ -127,6 +135,7 @@ export async function getPathState(
   return path.map((c, i) => ({
     ...c,
     lessonCount: countByCourse.get(c.id) ?? 0,
+    hasTest: c.quizId != null,
     unlocked: unlocked[i],
     completed: completed[i],
   }));

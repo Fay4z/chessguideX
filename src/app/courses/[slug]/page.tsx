@@ -4,6 +4,11 @@ import { notFound } from "next/navigation";
 import { getAuthUser, ensureProfile } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getCourseGate, getLessonGates } from "@/lib/gamification/gates";
+import { submitCourseTest } from "@/lib/content/actions";
+import {
+  QuizBlock,
+  type QuizQuestionView,
+} from "@/components/lesson/QuizBlock";
 
 export async function generateMetadata({
   params,
@@ -37,12 +42,26 @@ export default async function CoursePage({
         orderBy: { order: "asc" },
         include: { quiz: { select: { id: true } } },
       },
+      quiz: {
+        include: { questions: { orderBy: { position: "asc" } } },
+      },
     },
   });
   if (!course) notFound();
 
   const authUser = await getAuthUser();
   const profile = authUser ? await ensureProfile(authUser) : null;
+
+  const [attempt, certificate] = profile
+    ? await Promise.all([
+        prisma.courseTestAttempt.findUnique({
+          where: { userId_courseId: { userId: profile.id, courseId: course.id } },
+        }),
+        prisma.certificate.findUnique({
+          where: { userId_courseId: { userId: profile.id, courseId: course.id } },
+        }),
+      ])
+    : [null, null];
 
   const [courseGate, lessonGates] = await Promise.all([
     getCourseGate(profile?.id ?? null, course.id),
@@ -68,6 +87,16 @@ export default async function CoursePage({
 
   const totalLessons = course.lessons.length;
   const progress = totalLessons === 0 ? 0 : completedLessons / totalLessons;
+  const allLessonsDone =
+    totalLessons > 0 && completedLessons === totalLessons;
+
+  const testView: QuizQuestionView[] | null = course.quiz
+    ? course.quiz.questions.map((q) => ({
+        id: q.id,
+        prompt: q.prompt,
+        options: (q.options as { id: string; text: string }[] | null) ?? [],
+      }))
+    : null;
 
   return (
     <div className="mx-auto w-full max-w-5xl flex-1 px-4 py-10">
@@ -196,6 +225,64 @@ export default async function CoursePage({
               );
             })}
           </ol>
+
+          {course.quiz && (
+            <section
+              id="course-test"
+              className="mt-12 scroll-mt-6 border-t border-zinc-200 pt-10 dark:border-zinc-800"
+            >
+              {certificate ? (
+                <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-emerald-300 bg-emerald-50 px-5 py-4 dark:border-emerald-700 dark:bg-emerald-950/40">
+                  <span className="flex items-center gap-3">
+                    <svg
+                      className="h-7 w-7 text-emerald-600 dark:text-emerald-400"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                    >
+                      <path d="M12 2l2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.5-4.8 2.5.9-5.4L4.2 7.7l5.4-.8z" />
+                      <path d="M5 19h14v2H5z" opacity="0.4" />
+                    </svg>
+                    <span>
+                      <span className="block font-semibold text-emerald-900 dark:text-emerald-200">
+                        Course complete — you earned your certificate
+                      </span>
+                      <span className="mt-0.5 block text-sm text-emerald-700 dark:text-emerald-400">
+                        Issued {certificate.issuedAt.toLocaleDateString()} ·
+                        Code{" "}
+                        <code className="rounded bg-emerald-100 px-1.5 py-0.5 font-mono text-xs dark:bg-emerald-900/60">
+                          {certificate.verificationCode}
+                        </code>
+                      </span>
+                    </span>
+                  </span>
+                  <Link
+                    href={`/verify/${certificate.verificationCode}`}
+                    className="rounded-full border border-emerald-400 px-5 py-2 text-sm font-medium text-emerald-800 transition hover:bg-emerald-100 dark:border-emerald-600 dark:text-emerald-300 dark:hover:bg-emerald-900/40"
+                  >
+                    View certificate
+                  </Link>
+                </div>
+              ) : null}
+
+              {allLessonsDone || attempt?.passed ? (
+                <QuizBlock
+                  quizTitle={course.quiz.title}
+                  questions={testView ?? []}
+                  alreadyPassed={attempt?.passed ?? false}
+                  submit={(answers) => submitCourseTest(course.id, answers)}
+                />
+              ) : (
+                <div className="rounded-2xl border border-dashed border-zinc-300 px-6 py-8 text-center dark:border-zinc-700">
+                  <h2 className="text-lg font-semibold">{course.quiz.title}</h2>
+                  <p className="mx-auto mt-1 max-w-md text-sm text-zinc-600 dark:text-zinc-400">
+                    Finish all {totalLessons} lessons to unlock the course test.
+                    Score at least {course.quiz.minScore}% to complete this
+                    course and earn your certificate.
+                  </p>
+                </div>
+              )}
+            </section>
+          )}
         </>
       ) : (
         <div className="mt-8 rounded-2xl border border-zinc-200 bg-zinc-50 px-6 py-8 text-center dark:border-zinc-800 dark:bg-zinc-900">

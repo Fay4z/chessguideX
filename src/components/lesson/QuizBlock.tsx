@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { submitQuiz, type SubmitQuizResult } from "@/lib/content/actions";
+import { type SubmitQuizResult } from "@/lib/content/actions";
 
 export type QuizQuestionView = {
   id: string;
@@ -10,15 +10,17 @@ export type QuizQuestionView = {
 };
 
 export function QuizBlock({
-  lessonId,
   quizTitle,
   questions,
   alreadyPassed,
+  submit,
 }: {
-  lessonId: string;
   quizTitle: string;
   questions: QuizQuestionView[];
   alreadyPassed?: boolean;
+  submit: (
+    answers: Record<string, string>,
+  ) => Promise<SubmitQuizResult>;
 }) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [result, setResult] = useState<SubmitQuizResult | null>(null);
@@ -27,9 +29,9 @@ export function QuizBlock({
   const unanswered = questions.filter((q) => !answers[q.id]).length;
   const locked = Boolean(result && result.ok) || isPending;
 
-  function submit() {
+  function onSubmit() {
     startTransition(async () => {
-      const res = await submitQuiz(lessonId, answers);
+      const res = await submit(answers);
       setResult(res);
     });
   }
@@ -158,10 +160,21 @@ export function QuizBlock({
         </p>
       )}
 
+      {result && result.ok && result.certificate && (
+        <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 dark:border-emerald-700 dark:bg-emerald-950/40">
+          <span className="text-sm font-medium text-emerald-800 dark:text-emerald-300">
+            Certificate issued — verification code
+          </span>
+          <code className="rounded-lg bg-emerald-100 px-2 py-1 font-mono text-xs text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300">
+            {result.certificate.code}
+          </code>
+        </div>
+      )}
+
       <div className="mt-6 flex items-center gap-3">
         <button
           type="button"
-          onClick={submit}
+          onClick={onSubmit}
           disabled={locked || unanswered > 0}
           className="rounded-full bg-zinc-900 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-700 disabled:opacity-40 dark:bg-zinc-50 dark:text-black dark:hover:bg-zinc-300"
         >

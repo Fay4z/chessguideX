@@ -16,7 +16,7 @@ export interface AwardRecordResult {
 }
 
 async function statsFor(userId: string): Promise<BadgeStats> {
-  const [progress, attempts, streak] = await Promise.all([
+  const [progress, attempts, streak, certificates] = await Promise.all([
     prisma.lessonProgress.findMany({
       where: { userId, passed: true },
       select: { lesson: { select: { quizId: true } } },
@@ -26,13 +26,14 @@ async function statsFor(userId: string): Promise<BadgeStats> {
       select: { puzzleId: true },
     }),
     prisma.streak.findUnique({ where: { userId } }),
+    prisma.certificate.count({ where: { userId } }),
   ]);
   return {
     lessonsCompleted: progress.length,
     quizzesPassed: progress.filter((p) => p.lesson.quizId).length,
     puzzlesSolved: new Set(attempts.map((a) => a.puzzleId)).size,
     dailyStreak: streak?.dailyCount ?? 0,
-    coursesCompleted: 0,
+    coursesCompleted: certificates,
   };
 }
 
