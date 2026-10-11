@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { badgeTrigger, BADGE_TRIGGERS, earnedBadgeIds, type BadgeId, type BadgeStats } from "./badges";
+import { badgeTrigger, BADGE_IDS, BADGE_META, BADGE_TRIGGERS, earnedBadgeIds, type BadgeId, type BadgeStats } from "./badges";
 
 const zeroStats: BadgeStats = {
   lessonsCompleted: 0,
@@ -85,5 +85,11 @@ describe("earnedBadgeIds", () => {
     expect(
       earnedBadgeIds(stats({ lessonsCompleted: 1, quizzesPassed: 2 })),
     ).toEqual(["first_move", "quiz_whiz"]);
+  });
+});
+
+describe("BADGE_META", () => {
+  it("describes every badge id exactly once", () => {
+    expect(Object.keys(BADGE_META).sort()).toEqual([...BADGE_IDS].sort());
   });
 });

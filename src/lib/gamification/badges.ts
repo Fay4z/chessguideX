@@ -41,3 +41,16 @@ export function badgeTrigger(badge: BadgeId, stats: BadgeStats): boolean {
 export function earnedBadgeIds(stats: BadgeStats): BadgeId[] {
   return BADGE_IDS.filter((badge) => badgeTrigger(badge, stats));
 }
+
+export interface BadgeMeta {
+  label: string;
+  description: string;
+}
+
+export const BADGE_META: Record<BadgeId, BadgeMeta> = {
+  first_move: { label: "First Move", description: "Complete your first lesson" },
+  quiz_whiz: { label: "Quiz Whiz", description: "Pass your first quiz" },
+  puzzle_prowess: { label: "Puzzle Prowess", description: "Solve 25 puzzles" },
+  streak_7: { label: "Streak 7", description: "Reach a 7-day daily streak" },
+  course_champion: { label: "Course Champion", description: "Complete a course" },
+};

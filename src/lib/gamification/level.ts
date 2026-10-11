@@ -27,3 +27,25 @@ export function levelFor(totalXp: number): (typeof LEVELS)[number] {
   }
   return LEVEL_TIERS[0].name;
 }
+
+export interface LevelInfo {
+  level: (typeof LEVELS)[number];
+  xp: number;
+  next: (typeof LEVELS)[number] | null;
+  xpToNext: number | null;
+}
+
+export function levelInfo(totalXp: number): LevelInfo {
+  for (let i = LEVEL_TIERS.length - 1; i >= 0; i--) {
+    if (totalXp >= LEVEL_TIERS[i].minXp) {
+      const next = LEVEL_TIERS[i + 1] ?? null;
+      return {
+        level: LEVEL_TIERS[i].name,
+        xp: totalXp,
+        next: next?.name ?? null,
+        xpToNext: next ? next.minXp - totalXp : null,
+      };
+    }
+  }
+  return levelInfo(0);
+}

@@ -2,8 +2,20 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getAuthUser, ensureProfile } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { BADGE_IDS, BADGE_META } from "@/lib/gamification/badges";
+import { levelInfo } from "@/lib/gamification/level";
+import type { AwardKind } from "@/lib/gamification/awards";
 
 export const metadata = { title: "Dashboard — ChessGuideX" };
+
+const ACTIVITY_LABELS: Record<AwardKind, string> = {
+  lesson_complete: "Completed a lesson",
+  quiz_pass: "Passed a quiz",
+  course_test_pass: "Passed a course test",
+  puzzle_solved: "Solved a puzzle",
+  puzzle_streak_bonus: "Puzzle streak bonus",
+  daily_login: "Daily bonus",
+};
 
 export default async function DashboardPage() {
   const authUser = await getAuthUser();
@@ -15,13 +27,62 @@ export default async function DashboardPage() {
     return <TeacherHome name={profile.name} />;
   }
 
-  const [enrolledCourses, certificates, completedLessons] = await Promise.all([
-    prisma.enrollment.count({ where: { userId: profile.id } }),
-    prisma.certificate.count({ where: { userId: profile.id } }),
-    prisma.lessonProgress.count({
-      where: { userId: profile.id, completedAt: { not: null } },
+  const [{ _sum }, streak, badgeAwards, activity, courses] = await Promise.all([
+    prisma.pointsLedger.aggregate({
+      where: { userId: profile.id },
+      _sum: { points: true },
+    }),
+    prisma.streak.findUnique({ where: { userId: profile.id } }),
+    prisma.badgeAward.findMany({
+      where: { userId: profile.id },
+      select: { badgeId: true },
+    }),
+    prisma.pointsLedger.findMany({
+      where: { userId: profile.id },
+      orderBy: { createdAt: "desc" },
+      take: 8,
+      select: { reason: true, points: true, createdAt: true },
+    }),
+    prisma.course.findMany({
+      where: { published: true },
+      orderBy: [{ level: "asc" }, { order: "asc" }],
+      select: {
+        slug: true,
+        title: true,
+        lessons: {
+          where: { published: true },
+          orderBy: { order: "asc" },
+          select: {
+            slug: true,
+            title: true,
+            progress: {
+              where: { userId: profile.id, completedAt: { not: null } },
+              select: { id: true },
+            },
+          },
+        },
+      },
     }),
   ]);
+
+  const xp = _sum.points ?? 0;
+  const lvl = levelInfo(xp);
+  const earned = new Set(badgeAwards.map((b) => b.badgeId));
+
+  let nextLesson: { href: string; lessonTitle: string; courseTitle: string } | null =
+    null;
+  outer: for (const course of courses) {
+    for (const lesson of course.lessons) {
+      if (lesson.progress.length === 0) {
+        nextLesson = {
+          href: `/courses/${course.slug}/lessons/${lesson.slug}`,
+          lessonTitle: lesson.title,
+          courseTitle: course.title,
+        };
+        break outer;
+      }
+    }
+  }
 
   return (
     <div className="mx-auto w-full max-w-5xl flex-1 px-4 py-10">
@@ -39,25 +100,155 @@ export default async function DashboardPage() {
         </span>
       </div>
 
+      <section className="mt-8 rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        {nextLesson ? (
+          <>
+            <h2 className="text-xl font-semibold">Continue learning</h2>
+            <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+              {nextLesson.courseTitle} · {nextLesson.lessonTitle}
+            </p>
+            <Link
+              href={nextLesson.href}
+              className="mt-6 inline-block rounded-full bg-zinc-900 px-6 py-3 text-sm font-medium text-white transition hover:bg-zinc-700 dark:bg-zinc-50 dark:text-black dark:hover:bg-zinc-300"
+            >
+              Pick up where you left off
+            </Link>
+          </>
+        ) : (
+          <>
+            <h2 className="text-xl font-semibold">
+              {courses.length > 0
+                ? "You finished everything!"
+                : "Welcome to ChessGuideX"}
+            </h2>
+            <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+              {courses.length > 0
+                ? "Every lesson is done. Bring on the next course."
+                : "Courses with interactive lessons, quizzes and puzzles are waiting."}
+            </p>
+            <Link
+              href="/courses"
+              className="mt-6 inline-block rounded-full bg-zinc-900 px-6 py-3 text-sm font-medium text-white transition hover:bg-zinc-700 dark:bg-zinc-50 dark:text-black dark:hover:bg-zinc-300"
+            >
+              Browse courses
+            </Link>
+          </>
+        )}
+      </section>
+
       <div className="mt-8 grid gap-4 sm:grid-cols-3">
-        <StatCard label="Courses enrolled" value={enrolledCourses} />
-        <StatCard label="Lessons completed" value={completedLessons} />
-        <StatCard label="Certificates earned" value={certificates} />
+        <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+            Level
+          </div>
+          <div className="mt-2 text-3xl font-bold">{lvl.level}</div>
+          <div className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+            {xp} XP
+            {lvl.next
+              ? ` · ${lvl.xpToNext} XP to ${lvl.next}`
+              : " · top level!"}
+          </div>
+        </div>
+        <StreakCard
+          label="Daily streak"
+          value={streak?.dailyCount ?? 0}
+          unit="days"
+        />
+        <StreakCard
+          label="Puzzle streak"
+          value={streak?.puzzleCount ?? 0}
+          unit="in a row"
+        />
       </div>
 
-      <section className="mt-10 rounded-2xl border border-zinc-200 bg-white p-8 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-        <h2 className="text-xl font-semibold">Start your first course</h2>
-        <p className="mx-auto mt-2 max-w-md text-sm text-zinc-600 dark:text-zinc-400">
-          Courses are being prepared — Beginner, Intermediate and Advanced
-          lessons with interactive boards, quizzes and puzzles.
-        </p>
-        <Link
-          href="/courses"
-          className="mt-6 inline-block rounded-full bg-zinc-900 px-6 py-3 text-sm font-medium text-white transition hover:bg-zinc-700 dark:bg-zinc-50 dark:text-black dark:hover:bg-zinc-300"
-        >
-          Browse courses
-        </Link>
+      <section className="mt-10">
+        <h2 className="text-lg font-semibold">Badges</h2>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          {BADGE_IDS.map((badgeId) => {
+            const meta = BADGE_META[badgeId];
+            const isEarned = earned.has(badgeId);
+            return (
+              <div
+                key={badgeId}
+                className={`rounded-2xl border p-4 ${
+                  isEarned
+                    ? "border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30"
+                    : "border-zinc-200 bg-white opacity-60 dark:border-zinc-800 dark:bg-zinc-900"
+                }`}
+              >
+                <div
+                  className={`text-3xl ${
+                    isEarned ? "" : "grayscale"
+                  }`}
+                  aria-hidden
+                >
+                  {isEarned ? "★" : "☆"}
+                </div>
+                <div className="mt-2 font-semibold">{meta.label}</div>
+                <div className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-400">
+                  {meta.description}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </section>
+
+      <section className="mt-10">
+        <h2 className="text-lg font-semibold">Recent activity</h2>
+        {activity.length === 0 ? (
+          <p className="mt-3 rounded-2xl border border-zinc-200 bg-white p-6 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+            No activity yet — complete your first lesson to start earning
+            points.
+          </p>
+        ) : (
+          <ol className="mt-3 divide-y divide-zinc-100 rounded-2xl border border-zinc-200 bg-white shadow-sm dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-900">
+            {activity.map((entry, i) => (
+              <li
+                key={i}
+                className="flex items-center justify-between px-4 py-3 text-sm"
+              >
+                <span>
+                  <span className="font-medium">
+                    {ACTIVITY_LABELS[entry.reason as AwardKind] ?? entry.reason}
+                  </span>
+                  <span className="ml-2 text-zinc-500 dark:text-zinc-500">
+                    {entry.createdAt.toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </span>
+                </span>
+                <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+                  +{entry.points} XP
+                </span>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function StreakCard({
+  label,
+  value,
+  unit,
+}: {
+  label: string;
+  value: number;
+  unit: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+        {label}
+      </div>
+      <div className="mt-2 text-3xl font-bold">{value}</div>
+      <div className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+        {value === 0 ? "Not started yet" : unit}
+      </div>
     </div>
   );
 }
@@ -100,17 +291,6 @@ function TeacherHome({ name }: { name: string | null }) {
           </Link>
         </div>
       </section>
-    </div>
-  );
-}
-
-function StatCard({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-      <div className="text-3xl font-bold">{value}</div>
-      <div className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-        {label}
-      </div>
     </div>
   );
 }
