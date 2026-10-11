@@ -40,7 +40,7 @@ export async function proxy(request: NextRequest) {
     protectedPaths.some((p) => request.nextUrl.pathname.startsWith(p)) &&
     request.nextUrl.pathname !== "/courses";
 
-  const authPaths = ["/login", "/register"];
+  const authPaths = ["/login", "/register", "/forgot-password"];
   const isAuthPage = authPaths.some((p) =>
     request.nextUrl.pathname.startsWith(p),
   );
@@ -66,5 +66,6 @@ export const config = {
     "/admin/:path*",
     "/login",
     "/register",
+    "/forgot-password",
   ],
 };

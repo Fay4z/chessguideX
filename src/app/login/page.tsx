@@ -8,15 +8,19 @@ export const metadata = { title: "Sign in — ChessGuideX" };
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; success?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, success } = await searchParams;
   const user = await getAuthUser();
   if (user) redirect("/dashboard");
 
   const messages: Record<string, string> = {
     confirm_failed: "We couldn't confirm your email. Please sign in again.",
     signout: "You have been signed out.",
+  };
+
+  const successMessages: Record<string, string> = {
+    password_updated: "Password updated. Sign in with your new password.",
   };
 
   return (
@@ -27,6 +31,11 @@ export default async function LoginPage({
           <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
             Pick up where you left off.
           </p>
+          {success && successMessages[success] && (
+            <p className="mt-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+              {successMessages[success]}
+            </p>
+          )}
           <LoginForm initialError={error ? messages[error] : undefined} />
         </div>
         <p className="mt-6 text-center text-sm text-zinc-600 dark:text-zinc-400">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import Link from "next/link";
 import { login } from "@/lib/auth/actions";
 
 export function LoginForm({ initialError }: { initialError?: string }) {
@@ -31,6 +32,14 @@ export function LoginForm({ initialError }: { initialError?: string }) {
           className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-800"
         />
       </label>
+      <div className="-mt-1 flex justify-end">
+        <Link
+          href="/forgot-password"
+          className="text-sm text-zinc-600 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+        >
+          Forgot your password?
+        </Link>
+      </div>
       {state.error && (
         <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
           {state.error}
