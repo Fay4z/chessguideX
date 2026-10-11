@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canStartCourse, canStartLesson, unlockedCourses, unlockedLessons } from "./gating";
+import { canStartCourse, canStartLesson, nextLessonIndex, unlockedCourses, unlockedLessons } from "./gating";
 
 describe("canStartLesson", () => {
   it("keeps a locked course closed even for its first lesson", () => {
@@ -73,5 +73,21 @@ describe("unlockedCourses", () => {
 
   it("lets each course depend only on its immediate predecessor", () => {
     expect(unlockedCourses([true, false, true])).toEqual([true, true, false]);
+  });
+});
+
+describe("nextLessonIndex", () => {
+  it("points at the first lesson by default", () => {
+    expect(nextLessonIndex([true, false, false], [false, false, false])).toBe(0);
+  });
+
+  it("moves forward as lessons are passed", () => {
+    expect(nextLessonIndex([true, true, true], [true, false, false])).toBe(1);
+    expect(nextLessonIndex([true, true, true], [true, true, false])).toBe(2);
+  });
+
+  it("returns -1 when nothing is left to work on", () => {
+    expect(nextLessonIndex([true, true, true], [true, true, true])).toBe(-1);
+    expect(nextLessonIndex([true, false, false], [true, false, false])).toBe(-1);
   });
 });

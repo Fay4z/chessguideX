@@ -50,3 +50,11 @@ export function unlockedCourses(completed: boolean[]): boolean[] {
     }),
   );
 }
+
+/**
+ * Index of the next lesson the student may work on: the first unlocked
+ * lesson that is not yet passed, or -1 when nothing is left.
+ */
+export function nextLessonIndex(unlocked: boolean[], passed: boolean[]): number {
+  return unlocked.findIndex((u, i) => u && !passed[i]);
+}

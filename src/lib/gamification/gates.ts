@@ -11,6 +11,7 @@ export interface LessonGateRow {
   slug: string;
   title: string;
   unlocked: boolean;
+  passed: boolean;
 }
 
 /** Ordered published curriculum path. */
@@ -18,7 +19,7 @@ async function pathCourses() {
   return prisma.course.findMany({
     where: { published: true },
     orderBy: [{ level: "asc" }, { order: "asc" }],
-    select: { id: true, slug: true, title: true },
+    select: { id: true, slug: true, title: true, level: true, description: true },
   });
 }
 
@@ -90,6 +91,44 @@ export async function getLessonGates(
     slug: l.slug,
     title: l.title,
     unlocked: flags[i],
+    passed: passed.has(l.id),
+  }));
+}
+
+export interface PathCourse {
+  id: string;
+  slug: string;
+  title: string;
+  level: string;
+  description: string | null;
+  lessonCount: number;
+  unlocked: boolean;
+  completed: boolean;
+}
+
+/** The full curriculum path with per-course gate state. */
+export async function getPathState(
+  userId: string | null,
+): Promise<PathCourse[]> {
+  const path = await pathCourses();
+  const completed = await courseCompletedFlags(
+    userId,
+    path.map((c) => c.id),
+  );
+  const unlocked = unlockedCourses(completed);
+
+  const counts = await prisma.lesson.groupBy({
+    by: ["courseId"],
+    where: { courseId: { in: path.map((c) => c.id) }, published: true },
+    _count: { _all: true },
+  });
+  const countByCourse = new Map(counts.map((c) => [c.courseId, c._count._all]));
+
+  return path.map((c, i) => ({
+    ...c,
+    lessonCount: countByCourse.get(c.id) ?? 0,
+    unlocked: unlocked[i],
+    completed: completed[i],
   }));
 }
 
