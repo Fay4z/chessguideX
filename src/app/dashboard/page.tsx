@@ -10,6 +10,11 @@ export default async function DashboardPage() {
   if (!authUser) redirect("/login");
   const profile = await ensureProfile(authUser);
 
+  if (profile.role === "ADMIN") redirect("/admin/teachers");
+  if (profile.role === "TEACHER") {
+    return <TeacherHome name={profile.name} />;
+  }
+
   const [enrolledCourses, certificates, completedLessons] = await Promise.all([
     prisma.enrollment.count({ where: { userId: profile.id } }),
     prisma.certificate.count({ where: { userId: profile.id } }),
@@ -52,6 +57,42 @@ export default async function DashboardPage() {
         >
           Browse courses
         </Link>
+      </section>
+    </div>
+  );
+}
+
+function TeacherHome({ name }: { name: string | null }) {
+  return (
+    <div className="mx-auto w-full max-w-5xl flex-1 px-4 py-10">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">
+          {name ? `Welcome, ${name}` : "Teacher home"}
+        </h1>
+        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+          Manage your classes and follow your students&apos; progress.
+        </p>
+      </div>
+
+      <section className="mt-8 grid gap-4 sm:grid-cols-2">
+        <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+          <h2 className="text-xl font-semibold">My classes</h2>
+          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+            Create a class and add your students with their login details.
+          </p>
+          <span className="mt-4 inline-block rounded-full border border-zinc-300 px-3 py-1 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-700">
+            Coming next
+          </span>
+        </div>
+        <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+          <h2 className="text-xl font-semibold">Students</h2>
+          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+            See how each child is doing — level, streak, points and progress.
+          </p>
+          <span className="mt-4 inline-block rounded-full border border-zinc-300 px-3 py-1 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-700">
+            Coming next
+          </span>
+        </div>
       </section>
     </div>
   );
