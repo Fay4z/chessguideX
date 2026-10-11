@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { badgeTrigger, BADGE_TRIGGERS, type BadgeId, type BadgeStats } from "./badges";
+import { badgeTrigger, BADGE_TRIGGERS, earnedBadgeIds, type BadgeId, type BadgeStats } from "./badges";
 
 const zeroStats: BadgeStats = {
   lessonsCompleted: 0,
@@ -56,5 +56,34 @@ describe("badgeTrigger", () => {
   it("awards Course Champion on completing a course", () => {
     expect(badgeTrigger("course_champion", stats({ coursesCompleted: 0 }))).toBe(false);
     expect(badgeTrigger("course_champion", stats({ coursesCompleted: 1 }))).toBe(true);
+  });
+});
+
+describe("earnedBadgeIds", () => {
+  it("returns nothing for a brand-new student", () => {
+    expect(earnedBadgeIds(zeroStats)).toEqual([]);
+  });
+
+  it("lists every badge whose threshold is met", () => {
+    const all = earnedBadgeIds(
+      stats({
+        lessonsCompleted: 1,
+        quizzesPassed: 1,
+        puzzlesSolved: 25,
+        dailyStreak: 7,
+        coursesCompleted: 1,
+      }),
+    );
+    expect(all).toContain("first_move");
+    expect(all).toContain("quiz_whiz");
+    expect(all).toContain("puzzle_prowess");
+    expect(all).toContain("streak_7");
+    expect(all).toContain("course_champion");
+  });
+
+  it("returns only the badges actually reached", () => {
+    expect(
+      earnedBadgeIds(stats({ lessonsCompleted: 1, quizzesPassed: 2 })),
+    ).toEqual(["first_move", "quiz_whiz"]);
   });
 });

@@ -131,8 +131,19 @@ export function QuizBlock({
               : "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
           }`}
         >
-          <span className="font-semibold">
-            Score {result.score}% (required {result.minScore}%)
+          <span>
+            <span className="font-semibold">
+              Score {result.score}% (required {result.minScore}%)
+            </span>
+            {result.reward && (result.reward.points > 0 || result.reward.newBadges.length > 0) && (
+              <span className="mt-0.5 block text-sm">
+                {result.reward.points > 0
+                  ? `+${result.reward.points} points`
+                  : "Already counted — no new points"}
+                {result.reward.newBadges.length > 0 &&
+                  ` · New badge${result.reward.newBadges.length === 1 ? "" : "s"}: ${result.reward.newBadges.join(", ")}`}
+              </span>
+            )}
           </span>
           <span className="text-sm">
             {result.passed

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getAuthUser, ensureProfile } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { awardAndPersist, type AwardRecordResult } from "@/lib/gamification/record";
 
 // ─── Enroll ─────────────────────────────────────────────────────────────────
 
@@ -52,6 +53,7 @@ export type SubmitQuizResult =
       minScore: number;
       passed: boolean;
       results: SubmitQuizQuestionResult[];
+      reward: AwardRecordResult | null;
     }
   | { ok: false; error: string };
 
@@ -125,10 +127,12 @@ export async function submitQuiz(
     },
   });
 
+  const bestScore = Math.max(existing?.score ?? 0, score);
+
   await prisma.lessonProgress.upsert({
     where: { userId_lessonId: { userId: profile.id, lessonId: lesson.id } },
     update: {
-      score,
+      score: bestScore,
       passed: passed || existing?.passed === true,
       completedAt:
         !existing?.completedAt && passed ? new Date() : undefined,
@@ -142,9 +146,17 @@ export async function submitQuiz(
     },
   });
 
+  let reward: AwardRecordResult | null = null;
+  if (passed) {
+    reward = await awardAndPersist(profile.id, [
+      { kind: "lesson_complete", refId: lesson.id },
+      { kind: "quiz_pass", refId: lesson.id },
+    ]);
+  }
+
   revalidatePath(`/courses/${lesson.course.slug}`);
   revalidatePath(`/courses/${lesson.course.slug}/lessons/${lesson.slug}`);
   revalidatePath("/dashboard");
 
-  return { ok: true, score, minScore, passed, results };
+  return { ok: true, score, minScore, passed, results, reward };
 }

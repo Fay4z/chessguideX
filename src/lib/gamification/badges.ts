@@ -37,3 +37,7 @@ export function badgeTrigger(badge: BadgeId, stats: BadgeStats): boolean {
   if (!trigger) return false;
   return stats[trigger.stat] >= trigger.min;
 }
+
+export function earnedBadgeIds(stats: BadgeStats): BadgeId[] {
+  return BADGE_IDS.filter((badge) => badgeTrigger(badge, stats));
+}
