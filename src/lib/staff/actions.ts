@@ -60,3 +60,116 @@ export async function createTeacher(
 
   return { success: `Teacher "${name}" created.` };
 }
+
+// ─── Shared helpers ─────────────────────────────────────────────────────────
+
+async function requireStaff() {
+  const authUser = await getAuthUser();
+  if (!authUser) return null;
+  const profile = await ensureProfile(authUser);
+  if (profile.role !== "TEACHER" && profile.role !== "ADMIN") return null;
+  return profile;
+}
+
+async function findAuthUserByEmail(email: string) {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+  if (error) return null;
+  return data.users.find((u) => u.email?.toLowerCase() === email) ?? null;
+}
+
+// ─── Classes ────────────────────────────────────────────────────────────────
+
+const classSchema = z.object({
+  name: z.string().trim().min(1, "Class name is required.").max(60, "Class name is too long."),
+});
+
+export async function createClass(
+  _prevState: StaffFormState,
+  formData: FormData,
+): Promise<StaffFormState> {
+  const staff = await requireStaff();
+  if (!staff) return { error: "Only teachers or admins can create classes." };
+
+  const parsed = classSchema.safeParse({ name: formData.get("name") });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+
+  await prisma.class.create({
+    data: { name: parsed.data.name, teacherId: staff.id },
+  });
+
+  return { success: `Class "${parsed.data.name}" created.` };
+}
+
+// ─── Students ───────────────────────────────────────────────────────────────
+
+const studentSchema = z.object({
+  name: z.string().trim().min(1, "Student name is required."),
+  email: z.string().trim().email("Enter a valid email address."),
+  password: z.string().min(8, "Password must be at least 8 characters long."),
+});
+
+export async function createStudent(
+  classId: string,
+  _prevState: StaffFormState,
+  formData: FormData,
+): Promise<StaffFormState> {
+  const staff = await requireStaff();
+  if (!staff) return { error: "You must be a teacher or admin." };
+
+  const klass = await prisma.class.findUnique({ where: { id: classId } });
+  if (!klass) return { error: "Class not found." };
+  if (staff.role === "TEACHER" && klass.teacherId !== staff.id) {
+    return { error: "You do not own this class." };
+  }
+
+  const parsed = studentSchema.safeParse({
+    name: formData.get("name"),
+    email: formData.get("email"),
+    password: formData.get("password"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+  const { name, email, password } = parsed.data;
+
+  const supabase = createAdminClient();
+  const { data: created, error } = await supabase.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { name },
+  });
+
+  let authUserId = created?.user?.id ?? null;
+  if (error) {
+    if (!/already/i.test(error.message)) {
+      return { error: error.message };
+    }
+    const existingAuth = await findAuthUserByEmail(email);
+    if (!existingAuth) {
+      return { error: `Could not reuse ${email}: ${error.message}` };
+    }
+    authUserId = existingAuth.id;
+  }
+  if (!authUserId) return { error: "Could not resolve the student account." };
+
+  const user = await prisma.user.upsert({
+    where: { email },
+    update: { name, role: "STUDENT", supabaseUserId: authUserId },
+    create: { email, name, role: "STUDENT", supabaseUserId: authUserId },
+  });
+
+  try {
+    await prisma.classMember.create({ data: { classId, userId: user.id } });
+  } catch (e) {
+    if ((e as { code?: string }).code === "P2002") {
+      return { error: "This student is already in the class." };
+    }
+    return { error: "Could not add the student to the class." };
+  }
+
+  return { success: `Student "${name}" added.` };
+}

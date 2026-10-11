@@ -46,6 +46,8 @@ model User {
   puzzleAttempts PuzzleAttempt[]
   certificates   Certificate[]
   enrollments    Enrollment[]
+  classesTaught  Class[]        @relation("ClassTeacher")
+  classMemberships ClassMember[]
 }
 
 // ---------------------------------------------------------------------------
@@ -197,6 +199,33 @@ model Certificate {
   course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   @@unique([userId, courseId])
+}
+
+// ---------------------------------------------------------------------------
+// Classes (school structure)
+// ---------------------------------------------------------------------------
+
+model Class {
+  id        String   @id @default(cuid())
+  name      String
+  teacherId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  teacher User          @relation("ClassTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  members ClassMember[]
+}
+
+model ClassMember {
+  id       String   @id @default(cuid())
+  classId  String
+  userId   String
+  joinedAt DateTime @default(now())
+
+  class Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([classId, userId])
 }
 
 // ---------------------------------------------------------------------------

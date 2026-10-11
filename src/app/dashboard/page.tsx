@@ -80,18 +80,24 @@ function TeacherHome({ name }: { name: string | null }) {
           <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
             Create a class and add your students with their login details.
           </p>
-          <span className="mt-4 inline-block rounded-full border border-zinc-300 px-3 py-1 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-700">
-            Coming next
-          </span>
+          <Link
+            href="/teacher/classes"
+            className="mt-5 inline-block rounded-full bg-zinc-900 px-5 py-2 text-sm font-medium text-white transition hover:bg-zinc-700 dark:bg-zinc-50 dark:text-black dark:hover:bg-zinc-300"
+          >
+            Manage classes
+          </Link>
         </div>
         <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <h2 className="text-xl font-semibold">Students</h2>
           <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-            See how each child is doing — level, streak, points and progress.
+            Open a class to see its students and add login accounts.
           </p>
-          <span className="mt-4 inline-block rounded-full border border-zinc-300 px-3 py-1 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-700">
-            Coming next
-          </span>
+          <Link
+            href="/teacher/classes"
+            className="mt-5 inline-block rounded-full border border-zinc-300 px-5 py-2 text-sm font-medium transition hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+          >
+            View students
+          </Link>
         </div>
       </section>
     </div>
