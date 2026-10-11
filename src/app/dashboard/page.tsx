@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { BADGE_IDS, BADGE_META } from "@/lib/gamification/badges";
 import { levelInfo } from "@/lib/gamification/level";
 import type { AwardKind } from "@/lib/gamification/awards";
+import { DailyStreakClaim } from "@/components/hub/DailyStreakClaim";
 
 export const metadata = { title: "Dashboard — ChessGuideX" };
 
@@ -68,6 +69,20 @@ export default async function DashboardPage() {
   const xp = _sum.points ?? 0;
   const lvl = levelInfo(xp);
   const earned = new Set(badgeAwards.map((b) => b.badgeId));
+
+  const today = new Date().toISOString().slice(0, 10);
+  const claimedToday = Boolean(
+    await prisma.pointsLedger.findUnique({
+      where: {
+        userId_reason_refId: {
+          userId: profile.id,
+          reason: "daily_login",
+          refId: today,
+        },
+      },
+      select: { id: true },
+    }),
+  );
 
   let nextLesson: { href: string; lessonTitle: string; courseTitle: string } | null =
     null;
@@ -149,10 +164,9 @@ export default async function DashboardPage() {
               : " · top level!"}
           </div>
         </div>
-        <StreakCard
-          label="Daily streak"
-          value={streak?.dailyCount ?? 0}
-          unit="days"
+        <DailyStreakClaim
+          count={streak?.dailyCount ?? 0}
+          claimedToday={claimedToday}
         />
         <StreakCard
           label="Puzzle streak"
