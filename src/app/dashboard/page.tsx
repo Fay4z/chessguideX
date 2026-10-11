@@ -4,6 +4,7 @@ import { getAuthUser, ensureProfile } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { BADGE_IDS, BADGE_META } from "@/lib/gamification/badges";
 import { levelInfo } from "@/lib/gamification/level";
+import { rankByPoints } from "@/lib/gamification/leaderboard";
 import type { AwardKind } from "@/lib/gamification/awards";
 import { DailyStreakClaim } from "@/components/hub/DailyStreakClaim";
 
@@ -83,6 +84,39 @@ export default async function DashboardPage() {
       select: { id: true },
     }),
   );
+
+  const memberships = await prisma.classMember.findMany({
+    where: { userId: profile.id },
+    orderBy: { joinedAt: "asc" },
+    select: { class: { select: { id: true, name: true } } },
+  });
+  const klass = memberships[0]?.class ?? null;
+
+  let leaderboard: {
+    rank: number;
+    userId: string;
+    name: string;
+    points: number;
+  }[] | null = null;
+  if (klass) {
+    const classmates = await prisma.classMember.findMany({
+      where: { classId: klass.id },
+      select: { user: { select: { id: true, name: true } } },
+    });
+    const totals = await prisma.pointsLedger.groupBy({
+      by: ["userId"],
+      where: { userId: { in: classmates.map((m) => m.user.id) } },
+      _sum: { points: true },
+    });
+    const byUser = new Map(totals.map((t) => [t.userId, t._sum.points ?? 0]));
+    leaderboard = rankByPoints(
+      classmates.map((m) => ({
+        userId: m.user.id,
+        name: m.user.name ?? "—",
+        points: byUser.get(m.user.id) ?? 0,
+      })),
+    );
+  }
 
   let nextLesson: { href: string; lessonTitle: string; courseTitle: string } | null =
     null;
@@ -207,6 +241,47 @@ export default async function DashboardPage() {
           })}
         </div>
       </section>
+
+      {klass && leaderboard && (
+        <section className="mt-10">
+          <h2 className="text-lg font-semibold">Class leaderboard</h2>
+          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+            {klass.name}
+          </p>
+          <ol className="mt-3 divide-y divide-zinc-100 rounded-2xl border border-zinc-200 bg-white shadow-sm dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-900">
+            {leaderboard.map((row) => {
+              const isSelf = row.userId === profile.id;
+              return (
+                <li
+                  key={row.userId}
+                  className={`flex items-center justify-between px-4 py-3 text-sm ${
+                    isSelf
+                      ? "bg-zinc-50 dark:bg-zinc-800/60"
+                      : ""
+                  }`}
+                >
+                  <span className="flex items-center gap-3">
+                    <span className="w-6 text-right font-semibold text-zinc-500 tabular-nums">
+                      {row.rank}
+                    </span>
+                    <span className="font-medium">
+                      {row.name}
+                      {isSelf && (
+                        <span className="ml-2 rounded-full border border-zinc-300 px-2 py-0.5 text-xs uppercase tracking-wide dark:border-zinc-700">
+                          You
+                        </span>
+                      )}
+                    </span>
+                  </span>
+                  <span className="font-semibold tabular-nums">
+                    {row.points} XP
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
+        </section>
+      )}
 
       <section className="mt-10">
         <h2 className="text-lg font-semibold">Recent activity</h2>
