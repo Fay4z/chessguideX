@@ -54,6 +54,16 @@ export default async function TeacherClassPage({
     redirect("/teacher/classes");
   }
 
+  const memberIds = klass.members.map((member) => member.user.id);
+  const totals = await prisma.pointsLedger.groupBy({
+    by: ["userId"],
+    where: { userId: { in: memberIds } },
+    _sum: { points: true },
+  });
+  const pointsByUser = new Map(
+    totals.map((t) => [t.userId, t._sum.points ?? 0]),
+  );
+
   const roster = klass.members.map((member) => {
     const quizzesPassed = member.user.lessonProgress.filter(
       (p) =>
@@ -64,9 +74,10 @@ export default async function TeacherClassPage({
     return {
       ...member,
       progress: summarizeProgress({
-        lessonsPassed: member.user.lessonProgress.filter((p) => p.passed).length,
+        points: pointsByUser.get(member.user.id) ?? 0,
+        lessonsDone: member.user.lessonProgress.filter((p) => p.passed).length,
         quizzesPassed,
-        distinctPuzzlesSolved: new Set(
+        puzzlesSolved: new Set(
           member.user.puzzleAttempts
             .filter((a) => a.solved)
             .map((a) => a.puzzleId),

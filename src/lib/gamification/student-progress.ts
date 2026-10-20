@@ -1,10 +1,10 @@
-import { REWARD_TABLE } from "./awards";
 import { levelFor } from "./level";
 
 export interface StudentProgressInput {
-  lessonsPassed: number;
+  points: number;
+  lessonsDone: number;
   quizzesPassed: number;
-  distinctPuzzlesSolved: number;
+  puzzlesSolved: number;
   currentDailyStreak?: number;
   coursesCompleted?: number;
 }
@@ -19,20 +19,20 @@ export interface StudentProgressSnapshot {
   testsPassed: number;
 }
 
+/**
+ * Builds the teacher-facing snapshot from the student's real points-ledger
+ * total plus activity counts. Points are never re-derived from counts: the
+ * ledger is the single pool shared with the student hub and leaderboard.
+ */
 export function summarizeProgress(
   input: StudentProgressInput,
 ): StudentProgressSnapshot {
-  const points =
-    input.lessonsPassed * REWARD_TABLE.lesson_complete +
-    input.quizzesPassed * REWARD_TABLE.quiz_pass +
-    input.distinctPuzzlesSolved * REWARD_TABLE.puzzle_solved;
-
   return {
-    points,
-    level: levelFor(points),
-    lessonsDone: input.lessonsPassed,
+    points: input.points,
+    level: levelFor(input.points),
+    lessonsDone: input.lessonsDone,
     quizzesPassed: input.quizzesPassed,
-    puzzlesSolved: input.distinctPuzzlesSolved,
+    puzzlesSolved: input.puzzlesSolved,
     streak: input.currentDailyStreak ?? 0,
     testsPassed: input.coursesCompleted ?? 0,
   };

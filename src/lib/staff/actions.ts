@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { refresh } from "next/cache";
 import { getAuthUser, ensureProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { prisma } from "@/lib/db";
@@ -58,6 +59,7 @@ export async function createTeacher(
     return { error: "Could not save the platform profile. A user with that email may already exist." };
   }
 
+  refresh();
   return { success: `Teacher "${name}" created.` };
 }
 
@@ -100,6 +102,7 @@ export async function createClass(
     data: { name: parsed.data.name, teacherId: staff.id },
   });
 
+  refresh();
   return { success: `Class "${parsed.data.name}" created.` };
 }
 
@@ -175,6 +178,7 @@ export async function createStudent(
     return { error: "Could not add the student to the class." };
   }
 
+  refresh();
   return { success: `Student "${name}" added.` };
 }
 
