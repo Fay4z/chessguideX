@@ -46,3 +46,10 @@ next-env.d.ts
 
 # lavish
 .lavish
+
+# agents
+.agents
+docs/*
+
+skills-lock.json
+.scratch
