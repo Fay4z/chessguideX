@@ -30,6 +30,8 @@ import {
   isValidPuzzle,
   parseLichessLine,
 } from "../../src/lib/lichess/parse";
+import { inferLastMove } from "../../src/lib/chess/last-move";
+import { normalizeLichessPuzzle } from "../../src/lib/lichess/normalize";
 
 loadEnv({ path: resolve(".env.local") });
 
@@ -83,6 +85,21 @@ async function main() {
       continue;
     }
 
+    // Legacy one-move rows (our dev slice) already start at the solver's
+    // position; real Lichess rows lead with the opponent's move.
+    const normalized =
+      parsed.moves.length >= 2
+        ? normalizeLichessPuzzle(parsed.fen, parsed.moves)
+        : {
+            fen: parsed.fen,
+            solutionMoves: parsed.moves,
+            lastMove: inferLastMove(parsed.fen),
+          };
+    if (normalized === null || normalized.solutionMoves.length === 0) {
+      skipped++;
+      continue;
+    }
+
     const exists = await prisma.puzzle.findUnique({
       where: { lichessId: parsed.lichessId },
       select: { id: true },
@@ -91,8 +108,9 @@ async function main() {
     await prisma.puzzle.upsert({
       where: { lichessId: parsed.lichessId },
       update: {
-        fen: parsed.fen,
-        solutionMoves: parsed.moves,
+        fen: normalized.fen,
+        solutionMoves: normalized.solutionMoves,
+        lastMove: normalized.lastMove,
         rating: parsed.rating,
         ratingDeviation: parsed.ratingDeviation,
         themes: parsed.themes,
@@ -100,8 +118,9 @@ async function main() {
       },
       create: {
         lichessId: parsed.lichessId,
-        fen: parsed.fen,
-        solutionMoves: parsed.moves,
+        fen: normalized.fen,
+        solutionMoves: normalized.solutionMoves,
+        lastMove: normalized.lastMove,
         rating: parsed.rating,
         ratingDeviation: parsed.ratingDeviation,
         themes: parsed.themes,

@@ -134,6 +134,7 @@ model Puzzle {
   lichessId       String?  @unique
   fen             String
   solutionMoves   String[] // UCI format e4e5 g1f3 ...
+  lastMove        String? // Opponent's move into the puzzle FEN, UCI
   rating          Int?
   ratingDeviation Int?
   themes          String[]

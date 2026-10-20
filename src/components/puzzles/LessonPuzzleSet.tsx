@@ -8,10 +8,12 @@ export interface LessonPuzzleView {
   id: string;
   fen: string;
   solutionMoves: string[];
+  lastMove: string | null;
 }
 
 export function LessonPuzzleSet({ puzzles }: { puzzles: LessonPuzzleView[] }) {
   const [index, setIndex] = useState(0);
+  const [round, setRound] = useState(0);
   const [result, setResult] = useState<{
     solved: boolean;
     points: number;
@@ -43,9 +45,16 @@ export function LessonPuzzleSet({ puzzles }: { puzzles: LessonPuzzleView[] }) {
     );
   }
 
+  function retry() {
+    submittingRef.current = false;
+    setResult(null);
+    setRound((current) => current + 1);
+  }
+
   function next() {
     submittingRef.current = false;
     setResult(null);
+    setRound(0);
     if (isLast) {
       setDone(true);
     } else {
@@ -70,15 +79,18 @@ export function LessonPuzzleSet({ puzzles }: { puzzles: LessonPuzzleView[] }) {
       ) : (
         <>
           <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-            Same as the Puzzle Zone: drag the move, one hint after a miss, the
-            full solution plays out if you miss twice.
+            Same as the Puzzle Zone: click or drag the best move. Every legal
+            move stays on the board, and a wrong move ends the attempt.
           </p>
           <div className="mt-5 max-w-[480px]">
             <PuzzleBoard
-              key={current.id}
+              key={`${current.id}-${round}`}
               fen={current.fen}
+              lastMove={current.lastMove}
               solutionMoves={current.solutionMoves}
               onOutcome={handleOutcome}
+              onNext={next}
+              onRetry={retry}
             />
           </div>
 

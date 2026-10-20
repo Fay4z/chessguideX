@@ -51,7 +51,14 @@ export default async function LessonPage({
       puzzles: {
         orderBy: { order: "asc" },
         select: {
-          puzzle: { select: { id: true, fen: true, solutionMoves: true } },
+          puzzle: {
+            select: {
+              id: true,
+              fen: true,
+              solutionMoves: true,
+              lastMove: true,
+            },
+          },
         },
       },
     },
@@ -183,6 +190,7 @@ export default async function LessonPage({
               id: lp.puzzle.id,
               fen: lp.puzzle.fen,
               solutionMoves: lp.puzzle.solutionMoves,
+              lastMove: lp.puzzle.lastMove,
             }))}
           />
 

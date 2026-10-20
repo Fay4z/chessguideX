@@ -17,11 +17,11 @@ export function PuzzleZone({ initial }: { initial: PuzzlePickResult }) {
   const [puzzle, setPuzzle] = useState(initial);
   const [seenIds, setSeenIds] = useState<string[]>([]);
   const [result, setResult] = useState<Result | null>(null);
+  const [rating, setRating] = useState(initial.rating);
+  const [streak, setStreak] = useState(initial.puzzleStreak);
+  const [round, setRound] = useState(0);
   const [loadingNext, setLoadingNext] = useState(false);
   const submittingRef = useRef(false);
-
-  const streakShown = result?.puzzleStreak ?? puzzle.puzzleStreak;
-  const ratingShown = result?.rating ?? puzzle.rating;
 
   function handleOutcome(outcome: {
     solved: boolean;
@@ -35,7 +35,23 @@ export function PuzzleZone({ initial }: { initial: PuzzlePickResult }) {
       outcome.solved,
       outcome.attemptsUsed,
       outcome.timeMs,
-    ).then(setResult);
+    )
+      .then((res) => {
+        setResult(res);
+        if (res.ok) {
+          setRating(res.rating);
+          setStreak(res.puzzleStreak);
+        }
+      })
+      .catch(() => {
+        submittingRef.current = false;
+      });
+  }
+
+  function handleRetry() {
+    submittingRef.current = false;
+    setResult(null);
+    setRound((current) => current + 1);
   }
 
   function handleNewPuzzle() {
@@ -48,7 +64,10 @@ export function PuzzleZone({ initial }: { initial: PuzzlePickResult }) {
       if (res && "puzzle" in res) {
         submittingRef.current = false;
         setPuzzle(res);
+        setRating(res.rating);
+        setStreak(res.puzzleStreak);
         setResult(null);
+        setRound(0);
       }
     });
   }
@@ -60,18 +79,21 @@ export function PuzzleZone({ initial }: { initial: PuzzlePickResult }) {
       <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
         <div className="mb-4 flex items-center justify-between text-sm">
           <span className="rounded-full border border-zinc-300 px-3 py-1 font-medium dark:border-zinc-700">
-            Rating {ratingShown}
+            Rating {rating}
           </span>
           <span className="rounded-full border border-zinc-300 px-3 py-1 font-medium dark:border-zinc-700">
-            Streak {streakShown}
+            Streak {streak}
           </span>
         </div>
         <PuzzleBoard
-          key={puzzle.puzzle.id}
+          key={`${puzzle.puzzle.id}-${round}`}
           fen={puzzle.puzzle.fen}
+          lastMove={puzzle.puzzle.lastMove}
           solutionMoves={puzzle.puzzle.solutionMoves}
           disabled={loadingNext}
           onOutcome={handleOutcome}
+          onNext={handleNewPuzzle}
+          onRetry={handleRetry}
         />
         <div className="mt-4 flex justify-end">
           <button
@@ -108,7 +130,7 @@ export function PuzzleZone({ initial }: { initial: PuzzlePickResult }) {
             </div>
           ) : (
             <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
-              Drag a piece for your first attempt.
+              Drag or click a piece for your first attempt.
             </p>
           )}
         </section>
@@ -116,10 +138,10 @@ export function PuzzleZone({ initial }: { initial: PuzzlePickResult }) {
         <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <h2 className="text-lg font-semibold">How it works</h2>
           <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-zinc-700 dark:text-zinc-300">
-            <li>Solve on the first try to gain rating &amp; +10 XP.</li>
-            <li>One hint after a miss — solving with a hint stays neutral.</li>
-            <li>Miss twice and the full solution plays out.</li>
-            <li>Every streak solve pays +5 bonus XP on top.</li>
+            <li>Click or drag the best move. A wrong move ends the attempt.</li>
+            <li>Solved: +10 rating and +10 XP.</li>
+            <li>A wrong move costs 15 rating and resets the streak.</li>
+            <li>Every consecutive solve pays +5 bonus XP.</li>
             <li>Puzzles never gate your course progress.</li>
           </ul>
         </section>

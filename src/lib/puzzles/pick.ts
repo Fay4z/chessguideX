@@ -8,6 +8,7 @@ export interface PuzzlePayload {
   id: string;
   fen: string;
   solutionMoves: string[];
+  lastMove: string | null;
   rating: number | null;
 }
 
@@ -81,6 +82,7 @@ export async function pickNextPuzzle(
       id: row.id,
       fen: row.fen,
       solutionMoves: row.solutionMoves,
+      lastMove: row.lastMove,
       rating: row.rating,
     },
     puzzleStreak: state.puzzleStreak,
